@@ -1121,8 +1121,8 @@ const MAX_CODE_SIZE: u32 = 100;
 const MAX_HEAD_DATA_SIZE: u32 = 10;
 
 parameter_types! {
-	pub const SubmissionDeposit: u64 = 1;
-	pub const MinContribution: u64 = 10;
+	pub const SubmissionDeposit: u64 = 100000000000000;
+	pub const MinContribution: u64 = 100000000000;
 	pub const RetirementPeriod: u32 = 5;
 	pub const CrowdloanModuleId: sp_runtime::ModuleId = sp_runtime::ModuleId(*b"py/cfund");
 	pub const RemoveKeysLimit: u32 = 10;

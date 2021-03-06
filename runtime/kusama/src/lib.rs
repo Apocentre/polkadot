@@ -30,12 +30,14 @@ use primitives::v1::{
 	CoreState, GroupRotationInfo, Hash, Id, Moment, Nonce, OccupiedCoreAssumption,
 	PersistedValidationData, Signature, ValidationCode, ValidatorId, ValidatorIndex,
 	InboundDownwardMessage, InboundHrmpMessage, SessionInfo,
+	Id as ParaId, HeadData,
 };
 use runtime_common::{
 	claims, SlowAdjustingFeeUpdate, CurrencyToVote,
 	impls::DealWithFees,
 	BlockHashCount, RocksDbWeight, BlockWeights, BlockLength, OffchainSolutionWeightLimit,
 	ParachainSessionKeyPlaceholder, AssignmentSessionKeyPlaceholder,
+	crowdloan, slots
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys, ModuleId,
@@ -1033,6 +1035,9 @@ construct_runtime! {
 
 		// Election pallet. Only works with staking, but placed here to maintain indices.
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Module, Call, Storage, Event<T>, ValidateUnsigned} = 37,
+
+		Crowdloan: crowdloan::{Module, Call, Storage, Event<T>} = 38,
+		Slots: slots::{Module, Call, Storage, Event<T>} = 39,
 	}
 }
 
@@ -1070,6 +1075,68 @@ pub type Executive = frame_executive::Executive<
 >;
 /// The payload being signed in the transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
+
+pub struct TestParachains;
+impl slots::Registrar<AccountId> for TestParachains {
+	fn new_id() -> ParaId {
+		ParaId::from(1)
+	}
+
+	fn head_data_size_allowed(head_data_size: u32) -> bool {
+		head_data_size <= MAX_HEAD_DATA_SIZE
+	}
+
+	fn code_size_allowed(code_size: u32) -> bool {
+		code_size <= MAX_CODE_SIZE
+	}
+
+	fn register_para(
+		_id: ParaId,
+		_parachain: bool,
+		_code: ValidationCode,
+		_initial_head_data: HeadData,
+	) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+
+	fn deregister_para(_id: ParaId) -> sp_runtime::DispatchResult {
+		Ok(())
+	}
+}
+
+parameter_types!{
+	pub const LeasePeriod: u32 = 10;
+	pub const EndingPeriod: u32 = 3;
+}
+impl slots::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type Parachains = TestParachains;
+	type LeasePeriod = LeasePeriod;
+	type EndingPeriod = EndingPeriod;
+	type Randomness = RandomnessCollectiveFlip;
+}
+
+const MAX_CODE_SIZE: u32 = 100;
+const MAX_HEAD_DATA_SIZE: u32 = 10;
+
+parameter_types! {
+	pub const SubmissionDeposit: u64 = 100000000000000;
+	pub const MinContribution: u64 = 100000000000;
+	pub const RetirementPeriod: u32 = 5;
+	pub const CrowdloanModuleId: sp_runtime::ModuleId = sp_runtime::ModuleId(*b"py/cfund");
+	pub const RemoveKeysLimit: u32 = 10;
+}
+
+impl crowdloan::Config for Runtime {
+	type Event = Event;
+	type SubmissionDeposit = SubmissionDeposit;
+	type MinContribution = MinContribution;
+	type RetirementPeriod = RetirementPeriod;
+	type OrphanedFunds = Treasury;
+	type ModuleId = CrowdloanModuleId;
+	type RemoveKeysLimit = RemoveKeysLimit;
+}
 
 #[cfg(not(feature = "disable-runtime-api"))]
 sp_api::impl_runtime_apis! {
